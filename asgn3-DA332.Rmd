@@ -1,0 +1,195 @@
+---
+title: "Untitled"
+output: html_document
+date: "2025-01-27"
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(shiny)
+library(shinydashboard)
+library(ggplot2)
+library(plotly)
+library(DT)
+
+df <- iris
+
+plot.boxplot <- function(df, var, group, ylab) {
+  ggplot(df, aes_string(x = group, y = var, fill = group)) +
+    geom_boxplot(alpha = 0.7) +
+    labs(y = ylab, x = "Species") +
+    theme_minimal()
+}
+
+plot.density <- function(df, var, group, xlab) {
+  ggplot(df, aes_string(x = var, fill = group)) +
+    geom_density(alpha = 0.7) +
+    labs(x = xlab, y = "Density", fill = "Species") +
+    theme_minimal()
+}
+
+server <- function(input, output) {
+  
+  output$hist_sepal_len <- renderPlotly({
+    data <- df[df$Species == input$select_specie, ]
+    plot <- plot.histogram(data, "Sepal.Length", "Sepal Length", "Frequency")
+    ggplotly(plot)
+  })
+  
+  output$hist_sepal_wid <- renderPlotly({
+    data <- df[df$Species == input$select_specie, ]
+    plot <- plot.histogram(data, "Sepal.Width", "Sepal Width", "Frequency")
+    ggplotly(plot)
+  })
+  
+  output$hist_petal_len <- renderPlotly({
+    data <- df[df$Species == input$select_specie, ]
+    plot <- plot.histogram(data, "Petal.Length", "Petal Length", "Frequency")
+    ggplotly(plot)
+  })
+  
+  output$hist_petal_wid <- renderPlotly({
+    data <- df[df$Species == input$select_specie, ]
+    plot <- plot.histogram(data, "Petal.Width", "Petal Width", "Frequency")
+    ggplotly(plot)
+  })
+  
+  output$value_observations <- renderValueBox({
+    valueBox(
+      nrow(df[df$Species == input$select_specie, ]), "Number of Observations", icon = icon("list"),
+      color = "blue"
+    )
+  })
+  
+  output$value_sepal_len_mean <- renderValueBox({
+    valueBox(
+      round(mean(df[df$Species == input$select_specie, "Sepal.Length"], na.rm = TRUE), 1), "Mean Sepal Length", icon = icon("calculator"),
+      color = "teal"
+    )
+  })
+  
+  output$value_sepal_wid_mean <- renderValueBox({
+    valueBox(
+      round(mean(df[df$Species == input$select_specie, "Sepal.Width"], na.rm = TRUE), 1), "Mean Sepal Width", icon = icon("calculator"),
+      color = "navy"
+    )
+  })
+  
+  output$value_petal_len_mean <- renderValueBox({
+    valueBox(
+      round(mean(df[df$Species == input$select_specie, "Petal.Length"], na.rm = TRUE), 1), "Mean Petal Length", icon = icon("calculator"),
+      color = "light-blue"
+    )
+  })
+  
+  output$value_petal_wid_mean <- renderValueBox({
+    valueBox(
+      round(mean(df[df$Species == input$select_specie, "Petal.Width"], na.rm = TRUE), 1), "Mean Petal Width", icon = icon("calculator"),
+      color = "purple"
+    )
+  })
+  
+  output$scatter_1 <- renderPlotly({
+    plot <- plot.scatter(df, "Petal.Length", "Sepal.Length", "Species", "Petal Length", "Sepal Length", "Species")
+    ggplotly(plot)
+  })
+  
+  output$scatter_2 <- renderPlotly({
+    plot <- plot.scatter(df, "Petal.Width", "Sepal.Width", "Species", "Petal Width", "Sepal Width", "Species")
+    ggplotly(plot)
+  })
+  
+  # Boxplot
+  output$boxplot <- renderPlotly({
+    plot <- plot.boxplot(df, input$select_var, "Species", input$select_var)
+    ggplotly(plot)
+  })
+
+  # Density Plot
+  output$density <- renderPlotly({
+    plot <- plot.density(df, input$select_var, "Species", input$select_var)
+    ggplotly(plot)
+  })
+
+  # Interactive Data Table
+  output$data_table <- renderDT({
+    datatable(df, options = list(pageLength = 10))
+  })
+}
+
+ui <- dashboardPage(
+  dashboardHeader(title = "Dashboard Iris"),
+  
+  dashboardSidebar(
+    sidebarMenu(
+      menuItem("Histograms", tabName = "histograms", icon = icon("chart-bar")),
+      menuItem("Scatter Plots", tabName = "scatter", icon = icon("chart-bar")),
+      menuItem("Boxplots", tabName = "boxplots", icon = icon("chart-bar")),
+      menuItem("Density Plots", tabName = "density", icon = icon("chart-bar")),
+      menuItem("Data Table", tabName = "datatable", icon = icon("table"))
+    )
+  ),
+  
+  dashboardBody(
+    tabItems(
+      tabItem(tabName = "histograms",
+              fluidRow(
+                box(width = 2,
+                    selectInput(inputId = "select_specie", label = "Select Species", 
+                                choices = unique(df$Species), 
+                                selected = 1)),
+                valueBoxOutput(width = 2, outputId = "value_observations"),
+                valueBoxOutput(width = 2, outputId = "value_sepal_len_mean"),
+                valueBoxOutput(width = 2, outputId = "value_sepal_wid_mean"),
+                valueBoxOutput(width = 2, outputId = "value_petal_len_mean"),
+                valueBoxOutput(width = 2, outputId = "value_petal_wid_mean")
+              ),
+              fluidRow(
+                box(plotlyOutput(outputId = "hist_sepal_len")),
+                box(plotlyOutput(outputId = "hist_sepal_wid")),
+                box(plotlyOutput(outputId = "hist_petal_len")),
+                box(plotlyOutput(outputId = "hist_petal_wid"))
+              )
+      ),
+      
+      tabItem(tabName = "scatter",
+              fluidRow(
+                box(plotlyOutput(outputId = "scatter_1")),
+                box(plotlyOutput(outputId = "scatter_2"))
+              )
+      ),
+
+      tabItem(tabName = "boxplots",
+              fluidRow(
+                box(width = 4, selectInput(inputId = "select_var", label = "Select Variable", 
+                                           choices = c("Sepal.Length", "Sepal.Width", "Petal.Length", "Petal.Width"), 
+                                           selected = "Sepal.Length")),
+                box(plotlyOutput(outputId = "boxplot"))
+              )
+      ),
+
+      tabItem(tabName = "density",
+              fluidRow(
+                box(width = 4, selectInput(inputId = "select_var", label = "Select Variable", 
+                                           choices = c("Sepal.Length", "Sepal.Width", "Petal.Length", "Petal.Width"), 
+                                           selected = "Sepal.Length")),
+                box(plotlyOutput(outputId = "density"))
+              )
+      ),
+
+      tabItem(tabName = "datatable",
+              fluidRow(
+                box(DTOutput(outputId = "data_table"))
+              )
+      )
+    )
+  )
+)
+
+shinyApp(ui = ui, server = server)
+
+```
